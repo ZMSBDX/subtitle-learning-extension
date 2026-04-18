@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "Subtitle Learning Prototype",
+  "version": "0.0.1",
+  "description": "Phase 0 prototype for testing a YouTube subtitle learning extension.",
+  "action": {
+    "default_title": "Subtitle Learning",
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "src/background.js"
+  },
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "http://localhost:8787/*",
+    "https://*.run.app/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.youtube.com/*"
+      ],
+      "js": [
+        "src/content.js"
+      ],
+      "css": [
+        "src/content.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

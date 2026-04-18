@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Subtitle Learning</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+
+      body {
+        width: 360px;
+        max-height: 560px;
+        margin: 0;
+        color: #f7f7f7;
+        background: #151515;
+        font-size: 13px;
+      }
+
+      .app {
+        display: grid;
+        grid-template-rows: auto auto 1fr;
+        min-height: 440px;
+      }
+
+      header {
+        padding: 14px 14px 10px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 16px;
+        line-height: 1.25;
+      }
+
+      .subtitle {
+        margin-top: 4px;
+        color: rgba(255, 255, 255, 0.62);
+        font-size: 12px;
+      }
+
+      .tabs {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 6px;
+        padding: 10px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .tab-button {
+        padding: 7px 8px;
+        color: #f7f7f7;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 6px;
+        cursor: pointer;
+        font: inherit;
+      }
+
+      .tab-button.is-active {
+        background: #ffd54f;
+        border-color: #ffd54f;
+        color: #181818;
+        font-weight: 700;
+      }
+
+      .panel {
+        display: none;
+        overflow-y: auto;
+        padding: 12px;
+      }
+
+      .panel.is-active {
+        display: block;
+      }
+
+      .settings-grid {
+        display: grid;
+        gap: 11px;
+      }
+
+      .settings-group-title {
+        margin-top: 4px;
+        padding-top: 8px;
+        color: #ffd54f;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .settings-group-title:first-child {
+        margin-top: 0;
+        padding-top: 0;
+        border-top: 0;
+      }
+
+      label {
+        display: grid;
+        gap: 5px;
+      }
+
+      .row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .label-text {
+        color: rgba(255, 255, 255, 0.76);
+        font-size: 12px;
+      }
+
+      input,
+      select,
+      button {
+        font: inherit;
+      }
+
+      input[type="range"],
+      input[type="password"],
+      select {
+        width: 100%;
+      }
+
+      input[type="color"] {
+        width: 44px;
+        height: 28px;
+        padding: 0;
+        border: 0;
+        background: transparent;
+      }
+
+      .value {
+        min-width: 42px;
+        text-align: right;
+        color: rgba(255, 255, 255, 0.66);
+        font-size: 12px;
+      }
+
+      .button-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .button-row button {
+        padding: 6px 9px;
+        color: #f7f7f7;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 6px;
+        cursor: pointer;
+      }
+
+      .status-text {
+        color: rgba(255, 255, 255, 0.66);
+        font-size: 12px;
+      }
+
+      .list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .card {
+        display: grid;
+        gap: 5px;
+        padding: 9px;
+        background: rgba(255, 255, 255, 0.07);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 7px;
+      }
+
+      .card-title {
+        font-weight: 700;
+        overflow-wrap: anywhere;
+      }
+
+      .card-meta,
+      .card-text {
+        color: rgba(255, 255, 255, 0.66);
+        line-height: 1.35;
+        overflow-wrap: anywhere;
+      }
+
+      .card-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        justify-content: flex-end;
+      }
+
+      .ghost-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 5px 8px;
+        color: #f7f7f7;
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 6px;
+        cursor: pointer;
+        text-decoration: none;
+      }
+
+      .ghost-button.is-primary {
+        background: #ffd54f;
+        border-color: #ffd54f;
+        color: #181818;
+        font-weight: 700;
+      }
+
+      .card-detail {
+        display: grid;
+        gap: 7px;
+        padding-top: 7px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .card-detail[hidden] {
+        display: none;
+      }
+
+      .card-detail-row {
+        display: grid;
+        gap: 3px;
+      }
+
+      .card-detail-label {
+        color: rgba(255, 255, 255, 0.54);
+        font-size: 11px;
+      }
+
+      .card-detail-value {
+        color: rgba(255, 255, 255, 0.84);
+        line-height: 1.35;
+        overflow-wrap: anywhere;
+      }
+
+      .empty {
+        padding: 18px 10px;
+        color: rgba(255, 255, 255, 0.62);
+        text-align: center;
+      }
+
+      .review-summary {
+        margin-bottom: 8px;
+      }
+
+      .review-answer[hidden],
+      .review-actions[hidden] {
+        display: none;
+      }
+
+      .review-answer {
+        display: grid;
+        gap: 7px;
+        padding-top: 7px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .review-actions {
+        display: flex;
+        gap: 6px;
+        justify-content: flex-end;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <header>
+        <h1>Subtitle Learning</h1>
+        <div class="subtitle">Settings, saved items, and learning history</div>
+      </header>
+
+      <nav class="tabs" aria-label="Extension sections">
+        <button class="tab-button is-active" type="button" data-tab="settings">Settings</button>
+        <button class="tab-button" type="button" data-tab="saved">Saved</button>
+        <button class="tab-button" type="button" data-tab="review">Review</button>
+        <button class="tab-button" type="button" data-tab="history">History</button>
+      </nav>
+
+      <main>
+        <section id="settings-panel" class="panel is-active" data-panel="settings">
+          <div class="settings-grid">
+            <div class="settings-group-title">General</div>
+
+            <label class="row">
+              <span class="label-text">Extension enabled</span>
+              <input type="checkbox" data-setting="extensionEnabled">
+            </label>
+
+            <label class="row">
+              <span class="label-text">Auto-enable YouTube captions</span>
+              <input type="checkbox" data-setting="autoEnableCaptions">
+            </label>
+
+            <label class="row">
+              <span class="label-text">Auto-close/reset word popup</span>
+              <input type="checkbox" data-setting="autoClosePopup">
+            </label>
+
+            <div class="settings-group-title">Beta Access</div>
+
+            <label>
+              <span class="label-text">Access code</span>
+              <input id="beta-access-code" type="password" autocomplete="off" placeholder="Enter beta code">
+            </label>
+
+            <div class="button-row">
+              <button id="save-beta-access-code" type="button">Save</button>
+              <button id="clear-beta-access-code" type="button">Clear</button>
+              <span id="beta-access-status" class="status-text">Not set</span>
+            </div>
+
+            <div class="settings-group-title">Languages</div>
+
+            <label>
+              <span class="label-text">Native language</span>
+              <select data-setting="nativeLanguage">
+                <option value="tr">Turkish</option>
+                <option value="en">English</option>
+                <option value="es">Spanish</option>
+                <option value="de">German</option>
+              </select>
+            </label>
+
+            <label>
+              <span class="label-text">Target language</span>
+              <select data-setting="targetLanguage">
+                <option value="en">English</option>
+                <option value="tr">Turkish</option>
+                <option value="es">Spanish</option>
+                <option value="de">German</option>
+              </select>
+            </label>
+
+            <label>
+              <span class="label-text">Explanation mode</span>
+              <select data-setting="explanationMode">
+                <option value="quick">Quick</option>
+                <option value="deep">Deep</option>
+              </select>
+            </label>
+
+            <label>
+              <span class="label-text">Learner level</span>
+              <select data-setting="learnerLevel">
+                <option value="A2">A2</option>
+                <option value="B1">B1</option>
+                <option value="B2">B2</option>
+                <option value="C1">C1</option>
+              </select>
+            </label>
+
+            <div class="settings-group-title">Overlay</div>
+
+            <label class="row">
+              <span class="label-text">Hide native YouTube caption</span>
+              <input type="checkbox" data-setting="hideNativeCaptions">
+            </label>
+
+            <label class="row">
+              <span class="label-text">Overlay enabled</span>
+              <input type="checkbox" data-setting="overlayEnabled">
+            </label>
+
+            <label>
+              <span class="label-text">Font size</span>
+              <div class="row">
+                <input type="range" min="14" max="42" step="1" data-setting="fontSize">
+                <span class="value" data-value-for="fontSize"></span>
+              </div>
+            </label>
+
+            <label class="row">
+              <span class="label-text">Text color</span>
+              <input type="color" data-setting="textColor">
+            </label>
+
+            <label class="row">
+              <span class="label-text">Background enabled</span>
+              <input type="checkbox" data-setting="backgroundEnabled">
+            </label>
+
+            <label class="row">
+              <span class="label-text">Background color</span>
+              <input type="color" data-setting="backgroundColor">
+            </label>
+
+            <label>
+              <span class="label-text">Bottom offset</span>
+              <div class="row">
+                <input type="range" min="30" max="180" step="2" data-setting="bottomOffset">
+                <span class="value" data-value-for="bottomOffset"></span>
+              </div>
+            </label>
+
+          </div>
+        </section>
+
+        <section id="saved-panel" class="panel" data-panel="saved">
+          <div id="saved-list" class="list"></div>
+        </section>
+
+        <section id="review-panel" class="panel" data-panel="review">
+          <div id="review-summary" class="card review-summary"></div>
+          <div id="review-card" class="list"></div>
+        </section>
+
+        <section id="history-panel" class="panel" data-panel="history">
+          <div id="history-list" class="list"></div>
+        </section>
+      </main>
+    </div>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
