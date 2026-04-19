@@ -82,7 +82,10 @@
   let initialized = false
   let lastUrl = location.href
   let lastCaptionText = ''
+  let lastRenderedCaptionText = ''
+  let lastClearedCaptionText = ''
   let lastCaptionUpdateAt = 0
+  let isCaptionStale = false
   let captionContextLines = []
   let urlObserver = null
   let captionObserver = null
@@ -111,7 +114,10 @@
 
     initialized = true
     lastCaptionText = ''
+    lastRenderedCaptionText = ''
+    lastClearedCaptionText = ''
     lastCaptionUpdateAt = 0
+    isCaptionStale = false
     captionContextLines = []
     debugLog(LOG_PREFIX, 'content script initialized on YouTube watch page', {
       url: location.href
@@ -133,7 +139,10 @@
     removePopup()
     document.documentElement.classList.remove(HIDE_NATIVE_CAPTIONS_CLASS)
     lastCaptionText = ''
+    lastRenderedCaptionText = ''
+    lastClearedCaptionText = ''
     lastCaptionUpdateAt = 0
+    isCaptionStale = false
     captionContextLines = []
     initialized = false
     debugLog(LOG_PREFIX, 'cleaned up after leaving YouTube watch page')
@@ -148,7 +157,10 @@
     if (isYouTubeWatchPage()) {
       if (initialized) {
         lastCaptionText = ''
+        lastRenderedCaptionText = ''
+        lastClearedCaptionText = ''
         lastCaptionUpdateAt = 0
+        isCaptionStale = false
         captionContextLines = []
         syncFeatureState()
       } else {
@@ -226,7 +238,10 @@
     removePopup()
     document.documentElement.classList.remove(HIDE_NATIVE_CAPTIONS_CLASS)
     lastCaptionText = ''
+    lastRenderedCaptionText = ''
+    lastClearedCaptionText = ''
     lastCaptionUpdateAt = 0
+    isCaptionStale = false
     captionContextLines = []
   }
 
@@ -285,6 +300,8 @@
     if (!captionText || shouldIgnoreCaptionUpdate(captionText)) return
 
     lastCaptionText = captionText
+    lastClearedCaptionText = ''
+    isCaptionStale = false
     lastCaptionUpdateAt = Date.now()
     rememberCaptionContextLine(captionText)
     debugLog(CAPTION_LOG_PREFIX, `current line: "${captionText}"`)
@@ -297,12 +314,24 @@
 
     captionStaleTimer = window.setTimeout(() => {
       if (!lastCaptionUpdateAt) return
+      if (isVideoPaused()) {
+        scheduleCaptionStaleCleanup()
+        return
+      }
 
       const elapsed = Date.now() - lastCaptionUpdateAt
       if (elapsed < CAPTION_STALE_GRACE_MS) {
         scheduleCaptionStaleCleanup()
         return
       }
+
+      const activeCaptionText = cleanCaptionLine(getCurrentCaptionText())
+      if (activeCaptionText) {
+        scheduleCaptionStaleCleanup()
+        return
+      }
+
+      if (isCaptionStale || lastClearedCaptionText === lastRenderedCaptionText) return
 
       hideStaleCaptionOverlay()
     }, CAPTION_STALE_GRACE_MS)
@@ -317,6 +346,8 @@
 
   function hideStaleCaptionOverlay() {
     clearCaptionStaleTimer()
+    isCaptionStale = true
+    lastClearedCaptionText = lastRenderedCaptionText
     lastCaptionText = ''
     lastCaptionUpdateAt = 0
 
@@ -327,6 +358,11 @@
       if (!overlayEl?.classList.contains('slp-overlay-stale')) return
       overlayEl.textContent = ''
     }, CAPTION_STALE_CLEAR_MS)
+  }
+
+  function isVideoPaused() {
+    const video = document.querySelector('video')
+    return Boolean(video?.paused)
   }
 
   function rememberCaptionContextLine(captionText) {
@@ -476,6 +512,8 @@
     overlayEl.textContent = ''
 
     if (!captionText || !settings.overlayEnabled) return
+
+    lastRenderedCaptionText = captionText
 
     const tokens = tokenizeCaption(captionText)
     const clickableUnits = buildClickableUnits(tokens, captionText)
