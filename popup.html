@@ -109,9 +109,24 @@
         gap: 10px;
       }
 
+      .master-toggle {
+        padding: 9px;
+        background: rgba(255, 213, 79, 0.1);
+        border: 1px solid rgba(255, 213, 79, 0.22);
+        border-radius: 7px;
+      }
+
       .label-text {
         color: rgba(255, 255, 255, 0.76);
         font-size: 12px;
+      }
+
+      .setting-hint {
+        display: block;
+        margin-top: 3px;
+        color: rgba(255, 255, 255, 0.52);
+        font-size: 11px;
+        line-height: 1.35;
       }
 
       input,
@@ -289,8 +304,11 @@
           <div class="settings-grid">
             <div class="settings-group-title">General</div>
 
-            <label class="row">
-              <span class="label-text">Extension enabled</span>
+            <label class="row master-toggle">
+              <span>
+                <span class="label-text">Extension enabled</span>
+                <span class="setting-hint">Turns the YouTube overlay, word popup, and native caption hiding on or off.</span>
+              </span>
               <input type="checkbox" data-setting="extensionEnabled">
             </label>
 

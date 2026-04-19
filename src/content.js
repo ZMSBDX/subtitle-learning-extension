@@ -15,6 +15,8 @@
   const MOCK_EXPLANATION_DELAY_MS = 350
   const MAX_HISTORY_ITEMS = 20
   const MAX_SUBTITLE_CONTEXT_LINES = 4
+  const CAPTION_STALE_GRACE_MS = 1600
+  const CAPTION_STALE_CLEAR_MS = 220
   const POPUP_MIN_WIDTH = 300
   const POPUP_MAX_WIDTH = 620
   const POPUP_MIN_HEIGHT = 260
@@ -80,9 +82,11 @@
   let initialized = false
   let lastUrl = location.href
   let lastCaptionText = ''
+  let lastCaptionUpdateAt = 0
   let captionContextLines = []
   let urlObserver = null
   let captionObserver = null
+  let captionStaleTimer = null
   let overlayEl = null
   let popupEl = null
   let savedWordsCache = []
@@ -107,6 +111,7 @@
 
     initialized = true
     lastCaptionText = ''
+    lastCaptionUpdateAt = 0
     captionContextLines = []
     debugLog(LOG_PREFIX, 'content script initialized on YouTube watch page', {
       url: location.href
@@ -123,10 +128,12 @@
     if (!initialized) return
 
     stopCaptionObserver()
+    clearCaptionStaleTimer()
     removeOverlay()
     removePopup()
     document.documentElement.classList.remove(HIDE_NATIVE_CAPTIONS_CLASS)
     lastCaptionText = ''
+    lastCaptionUpdateAt = 0
     captionContextLines = []
     initialized = false
     debugLog(LOG_PREFIX, 'cleaned up after leaving YouTube watch page')
@@ -141,6 +148,7 @@
     if (isYouTubeWatchPage()) {
       if (initialized) {
         lastCaptionText = ''
+        lastCaptionUpdateAt = 0
         captionContextLines = []
         syncFeatureState()
       } else {
@@ -213,10 +221,12 @@
 
   function disableContentFeatures() {
     stopCaptionObserver()
+    clearCaptionStaleTimer()
     removeOverlay()
     removePopup()
     document.documentElement.classList.remove(HIDE_NATIVE_CAPTIONS_CLASS)
     lastCaptionText = ''
+    lastCaptionUpdateAt = 0
     captionContextLines = []
   }
 
@@ -275,9 +285,48 @@
     if (!captionText || shouldIgnoreCaptionUpdate(captionText)) return
 
     lastCaptionText = captionText
+    lastCaptionUpdateAt = Date.now()
     rememberCaptionContextLine(captionText)
     debugLog(CAPTION_LOG_PREFIX, `current line: "${captionText}"`)
     renderCaptionOverlay(captionText)
+    scheduleCaptionStaleCleanup()
+  }
+
+  function scheduleCaptionStaleCleanup() {
+    clearCaptionStaleTimer()
+
+    captionStaleTimer = window.setTimeout(() => {
+      if (!lastCaptionUpdateAt) return
+
+      const elapsed = Date.now() - lastCaptionUpdateAt
+      if (elapsed < CAPTION_STALE_GRACE_MS) {
+        scheduleCaptionStaleCleanup()
+        return
+      }
+
+      hideStaleCaptionOverlay()
+    }, CAPTION_STALE_GRACE_MS)
+  }
+
+  function clearCaptionStaleTimer() {
+    if (!captionStaleTimer) return
+
+    window.clearTimeout(captionStaleTimer)
+    captionStaleTimer = null
+  }
+
+  function hideStaleCaptionOverlay() {
+    clearCaptionStaleTimer()
+    lastCaptionText = ''
+    lastCaptionUpdateAt = 0
+
+    if (!overlayEl) return
+
+    overlayEl.classList.add('slp-overlay-stale')
+    window.setTimeout(() => {
+      if (!overlayEl?.classList.contains('slp-overlay-stale')) return
+      overlayEl.textContent = ''
+    }, CAPTION_STALE_CLEAR_MS)
   }
 
   function rememberCaptionContextLine(captionText) {
@@ -423,6 +472,7 @@
     if (!overlayEl) return
 
     const captionText = normalizeCaptionText(text)
+    overlayEl.classList.remove('slp-overlay-stale')
     overlayEl.textContent = ''
 
     if (!captionText || !settings.overlayEnabled) return
@@ -1421,12 +1471,22 @@
 
     body.append(...rows.filter(Boolean))
 
+    popupEl.append(
+      header,
+      body,
+      createPopupResizeHandle('right'),
+      createPopupResizeHandle('bottom'),
+      createPopupResizeHandle('corner')
+    )
+  }
+
+  function createPopupResizeHandle(direction) {
     const resizeHandle = document.createElement('div')
-    resizeHandle.className = 'slp-popup-resize-handle'
+    resizeHandle.className = `slp-popup-resize-handle slp-popup-resize-${direction}`
+    resizeHandle.dataset.resizeDirection = direction
     resizeHandle.setAttribute('aria-hidden', 'true')
     resizeHandle.addEventListener('mousedown', startPopupResize)
-
-    popupEl.append(header, body, resizeHandle)
+    return resizeHandle
   }
 
   function createPopupSection(title, rows) {
@@ -1785,6 +1845,7 @@
   function startPopupResize(event) {
     if (!popupEl || event.button !== 0) return
 
+    const targetEl = event.currentTarget instanceof HTMLElement ? event.currentTarget : null
     const rect = popupEl.getBoundingClientRect()
     popupPosition = {
       left: rect.left,
@@ -1792,6 +1853,7 @@
     }
 
     resizeState = {
+      direction: targetEl?.dataset.resizeDirection || 'corner',
       startX: event.clientX,
       startY: event.clientY,
       startWidth: rect.width,
@@ -1811,8 +1873,14 @@
 
     const maxWidth = getPopupMaxWidth()
     const maxHeight = getPopupMaxHeight()
-    const width = clamp(resizeState.startWidth + event.clientX - resizeState.startX, POPUP_MIN_WIDTH, maxWidth)
-    const height = clamp(resizeState.startHeight + event.clientY - resizeState.startY, POPUP_MIN_HEIGHT, maxHeight)
+    const canResizeWidth = ['right', 'corner'].includes(resizeState.direction)
+    const canResizeHeight = ['bottom', 'corner'].includes(resizeState.direction)
+    const width = canResizeWidth
+      ? clamp(resizeState.startWidth + event.clientX - resizeState.startX, POPUP_MIN_WIDTH, maxWidth)
+      : resizeState.startWidth
+    const height = canResizeHeight
+      ? clamp(resizeState.startHeight + event.clientY - resizeState.startY, POPUP_MIN_HEIGHT, maxHeight)
+      : resizeState.startHeight
 
     popupSize = {
       width: Math.round(width),
